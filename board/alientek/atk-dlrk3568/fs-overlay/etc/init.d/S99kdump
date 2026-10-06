@@ -1,0 +1,34 @@
+#!/bin/sh
+# S99kdump -- boot-time auto-arm for kdump.
+#
+# Fires only when the kernel reserved a crash region AND the capture kernel +
+# minimal initramfs are present.  Any precondition missing -> silent skip.
+# Never blocks boot (always exits 0).
+
+KEXEC=/usr/sbin/kexec
+IMG=/root/Image.min
+INITRD=/root/initrd.kdump
+
+# 1) no "crashkernel=" on the cmdline -> nothing to arm
+grep -q "crashkernel=" /proc/cmdline 2>/dev/null || { echo "[kdump] no crashkernel= in cmdline, skip"; exit 0; }
+
+# 2) capture kernel + initramfs must exist
+[ -f "$IMG" ]    || { echo "[kdump] $IMG missing, skip"; exit 0; }
+[ -f "$INITRD" ] || { echo "[kdump] $INITRD missing, skip"; exit 0; }
+[ -x "$KEXEC" ]  || { echo "[kdump] $KEXEC missing, skip"; exit 0; }
+
+# 3) already loaded -> do nothing
+if [ "$(cat /sys/kernel/kexec_crash_loaded 2>/dev/null)" = "1" ]; then
+	echo "[kdump] already armed"
+	exit 0
+fi
+
+# 4) load the crash kernel (panic path jumps to it; cmdline as verified by hand)
+if "$KEXEC" -p "$IMG" --initrd="$INITRD" \
+	-c "console=ttyFIQ0,1500000n8 earlycon=uart8250,mmio32,0xfe660000 rdinit=/init irqpoll nr_cpus=1 reset_devices"
+then
+	echo "[kdump] armed (kexec -p loaded)"
+else
+	echo "[kdump] WARN: kexec -p failed (rc=$?)"
+fi
+exit 0
