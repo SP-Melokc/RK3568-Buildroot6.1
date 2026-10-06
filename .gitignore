@@ -1,0 +1,52 @@
+/output
+/dl
+/.auto.deps
+/.config.cmd
+/.config.old
+/..config.tmp
+/.config
+*.depend
+*.o
+/*.patch
+/*.diff
+*.orig
+*.rej
+*~
+*.pyc
+
+#=== Melokc: 排除项（文件保留在本地磁盘，但不入库/不 push）===
+# 构建产物 / 下载缓存
+/output
+/dl
+# 板级演示素材（视频/音频）
+/board/alientek/atk-dlrk3568/fs-overlay/opt/ui/src/apps/resource/media/
+/board/alientek/atk-dlrk3568/fs-overlay/opt/ui/src/apps/resource/audio/
+# retroarch 模拟器（自带素材）
+/package/retroarch/
+# Qt
+/package/qt5/
+/package/qt6/
+/package/qt5cinex/
+/package/qt-webkit-kiosk/
+/package/libconnman-qt/
+/package/log4qt/
+/package/python-pyqt5/
+# Mali / GPU
+/package/mali-driver/
+/package/mali-t76x/
+/package/sunxi-mali-utgard/
+/package/sunxi-mali-utgard-driver/
+/package/onevpl-intel-gpu/
+# Rockchip NPU / GPU / AI
+/package/rockchip/rknpu/
+/package/rockchip/rknpu2/
+/package/rockchip/rknpu-fw/
+/package/rockchip/rknn-llm/
+/package/rockchip/npu_powerctrl/
+/package/rockchip/npu_powerctrl_combine/
+/package/rockchip/rockchip-ai/
+/package/rockchip/rockchip-mali/
+/package/rockchip/slt_gpu_light/
+
+# 大字体包（避免 GitHub >50M 大文件告警）
+/archives/SourceHanSansCN.zip

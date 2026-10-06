@@ -1,0 +1,11 @@
+config BR2_PACKAGE_MEDIAMTX
+	bool "MediaMTX"
+	depends on BR2_USE_MMU
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_HOST_GO
+	help
+	  MediaMTX is a ready-to-use RTSP / RTMP / HLS / WebRTC media
+	  server and media proxy that allows to read, publish and proxy
+	  video and audio streams.
+
+	  https://github.com/bluenviron/mediamtx

@@ -1,0 +1,114 @@
+#!/bin/sh
+#
+# Start/stop bluetooth device
+#
+
+DESC="Bluetooth device"
+HCIATTACH=/usr/bin/rtk_hciattach
+HCIUART_MODULE=hci_uart
+TTY_DEV=/dev/ttyS8
+PIDFILE=/var/run/rtk_hciattach.pid
+LOG_FILE=/var/log/bluetooth_start.log
+
+# 加载模块函数（快速执行）
+load_module() {
+    if ! lsmod | grep -q "$HCIUART_MODULE"; then
+        modprobe "$HCIUART_MODULE" 2>/dev/null
+    fi
+}
+
+# 实际启动工作（放到后台执行）
+do_start_background() {
+    {
+        # 控制 RFKILL
+        echo 0 > /sys/class/rfkill/rfkill0/state 2>/dev/null
+        sleep 1
+        echo 1 > /sys/class/rfkill/rfkill0/state 2>/dev/null
+        sleep 1
+        
+        # 加载模块
+        load_module
+        
+        # 启动 hciattach
+        $HCIATTACH -n -s 115200 $TTY_DEV rtk_h5 > /dev/null 2>&1 &
+        echo $! > $PIDFILE
+        
+        # 等待并启动 hci0
+        sleep 2
+        hciconfig hci0 up 2>/dev/null
+        
+        echo "$(date): Bluetooth started" >> $LOG_FILE
+    } &
+}
+
+# 启动函数（立即返回）
+do_start() {
+    echo "Starting $DESC (background)..."
+    
+    # 停止已存在的进程
+    do_stop > /dev/null 2>&1
+    sleep 1
+    
+    # 后台启动蓝牙
+    do_start_background
+    
+    echo "$DESC start command issued"
+    return 0
+}
+
+# 停止函数
+do_stop() {
+    echo "Stopping $DESC..."
+    
+    # 停止 hci0 接口
+    hciconfig hci0 down > /dev/null 2>&1
+    
+    # 停止 hciattach 进程
+    if [ -f "$PIDFILE" ]; then
+        kill $(cat $PIDFILE) 2>/dev/null
+        rm -f "$PIDFILE"
+    else
+        killall rtk_hciattach 2>/dev/null
+    fi
+    
+    echo "$DESC stopped"
+    return 0
+}
+
+# 重启函数
+do_restart() {
+    do_stop
+    do_start
+}
+
+# 状态检查函数
+do_status() {
+    if pgrep -x "rtk_hciattach" > /dev/null; then
+        echo "rtk_hciattach is running"
+        hciconfig hci0 2>/dev/null
+        return 0
+    else
+        echo "$DESC is not running"
+        return 1
+    fi
+}
+
+case "$1" in
+    start)
+        do_start
+        ;;
+    stop)
+        do_stop
+        ;;
+    restart)
+        do_restart
+        ;;
+    status)
+        do_status
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+esac
+
+exit 0

@@ -1,0 +1,42 @@
+关于本软件: 基于 Buildroot 和 Qt5.15 的嵌入式系统
+1. 关于 UI
+
+用户界面（UI）由正点原子团队采用 Qt 框架编写，遵循 GPL v3 协议开源。
+使用请保留原作者信息，并遵守 GPL v3 协议。
+2. 关于相机
+
+摄像头相关的应用需要搭配正点原子 IMX415 摄像头模块或者USB摄像头，其他 MIPI 摄像头需自行适配。
+3. 关于时间
+
+需要插上网线从网络获取时间（使用 chrony（chronyc）网络时间同步）。可查阅快速体验手册设置 RTC 时间，这样 Qt 就会显示正确的日期时间。如无网络，则按ATK-DLRK***_Buildroot快速体验手册设置rtc硬件时钟。
+4. 关于流畅度
+
+注意内存使用！App 后台过多、内存耗尽容易卡顿！
+5. 关于屏幕方向
+
+本软件为竖屏设计，仅支持竖屏显示。请勿在横屏设备上运行，否则会导致 UI 错位或显示异常。
+6. 关于退出与禁用
+
+退出方式：
+在设置 App 中点击"退出"按钮，即可退出本 UI 界面。
+
+永久禁用（开机不自启）：
+如需永久关闭本 UI（开机不自动启动），请将 /etc/init.d/S50systemui 重命名为 K50systemui，命令如下：
+mv /etc/init.d/S50systemui /etc/init.d/K50systemui
+
+如需恢复开机自启，重命名回来即可：
+mv /etc/init.d/K50systemui /etc/init.d/S50systemui
+7. 源代码与许可证
+
+本软件开源地址：https://gitee.com/dengzhimao/rk3568-rk3588-rk3562-systemui
+GPL v3 协议全文：https://www.gnu.org/licenses/gpl-3.0.html
+8. 联系我们
+
+邮箱：dengzhiamo@alientek.com
+企鹅号：1252699831
+B站：dengzhimao
+正点原子官网：https://www.alientek.com
+
+9. 关于反馈
+
+如遇到 Bug 或有改进建议，欢迎提交 Issue 或联系作者。

@@ -1,0 +1,32 @@
+#!/bin/sh
+
+DAEMON=/usr/bin/mediamtx
+CONFIG=/etc/mediamtx.yml
+PIDFILE=/var/run/mediamtx.pid
+LOGDIR=/var/log/mediamtx
+
+case "$1" in
+  start)
+    echo -n "Starting MediaMTX: "
+    mkdir -p $LOGDIR
+    start-stop-daemon -S -q -b -m -p $PIDFILE \
+      -x $DAEMON -- -config $CONFIG -logfile $LOGDIR/mediamtx.log
+    [ $? -eq 0 ] && echo "OK" || echo "FAIL"
+    ;;
+  stop)
+    echo -n "Stopping MediaMTX: "
+    start-stop-daemon -K -q -p $PIDFILE
+    [ $? -eq 0 ] && echo "OK" || echo "FAIL"
+    ;;
+  restart)
+    $0 stop
+    sleep 1
+    $0 start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+    ;;
+esac
+
+exit 0

@@ -1,0 +1,30 @@
+diff -ruN a/kexec/arch/arm64/crashdump-arm64.c b/kexec/arch/arm64/crashdump-arm64.c
+--- a/kexec/arch/arm64/crashdump-arm64.c	2023-05-24 19:47:18.000000000 +0800
++++ b/kexec/arch/arm64/crashdump-arm64.c	2026-10-05 14:18:48.635486504 +0800
+@@ -72,6 +72,7 @@
+ 	else if (strncmp(str, KERNEL_CODE, strlen(KERNEL_CODE)) == 0) {
+ 
+ 		unsigned long long  kva_text = get_kernel_sym("_text");
++		if (!kva_text) kva_text = get_kernel_sym("_stext");
+ 		unsigned long long  kva_stext = get_kernel_sym("_stext");
+ 		unsigned long long  kva_text_end = get_kernel_sym("__init_begin");
+ 
+@@ -149,6 +150,7 @@
+ 	 * kern_paddr_start/kern_size are determined in iomem_range_callback
+ 	 */
+ 	elf_info.kern_vaddr_start = get_kernel_sym("_text");
++	if (!elf_info.kern_vaddr_start) elf_info.kern_vaddr_start = get_kernel_sym("_stext");
+ 	if (!elf_info.kern_vaddr_start)
+ 		elf_info.kern_vaddr_start = UINT64_MAX;
+ 
+diff -ruN a/kexec/arch/arm64/kexec-arm64.c b/kexec/arch/arm64/kexec-arm64.c
+--- a/kexec/arch/arm64/kexec-arm64.c	2023-08-11 15:28:08.000000000 +0800
++++ b/kexec/arch/arm64/kexec-arm64.c	2026-10-05 14:18:48.639486383 +0800
+@@ -946,6 +946,7 @@
+ 	int ret;
+ 
+ 	text_sym_addr = get_kernel_sym("_text");
++	if (!text_sym_addr) text_sym_addr = get_kernel_sym("_stext");
+ 	if (text_sym_addr == 0) {
+ 		fprintf(stderr, "Can't get the symbol of _text to calculate page_offset.\n");
+ 		return -1;

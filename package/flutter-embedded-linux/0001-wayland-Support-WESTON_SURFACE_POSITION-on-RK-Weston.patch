@@ -1,0 +1,153 @@
+From 3b6d6d5e02932b8eff238af5c3607871e7d3d7e7 Mon Sep 17 00:00:00 2001
+From: Your Name <dengzhimao@alientek.com>
+Date: Mon, 11 May 2026 16:54:18 +0800
+Subject: [PATCH] Subject: [PATCH] wayland: support WESTON_SURFACE_POSITION on
+ RK Weston
+
+RK's Weston patch interprets xdg_surface.set_window_geometry(x, y, 0, 0)
+as an initial position request for xdg toplevel windows. flutter-client only
+sends the normal size geometry, so Weston still picks a random initial
+location.
+
+Support:
+
+  export WESTON_SURFACE_POSITION=100,200
+
+and send set_window_geometry(x, y, 0, 0) both:
+1. right after xdg_toplevel creation, before the first commit
+2. after the regular configure geometry update
+
+This matches the compositor-side RK hack more closely and avoids the initial
+request being overwritten by the subsequent size geometry request.
+---
+ .../window/elinux_window_wayland.cc           | 44 +++++++++++++++++++
+ .../window/elinux_window_wayland.h            |  6 +++
+ 2 files changed, 50 insertions(+)
+
+diff --git a/src/flutter/shell/platform/linux_embedded/window/elinux_window_wayland.cc b/src/flutter/shell/platform/linux_embedded/window/elinux_window_wayland.cc
+index 6467bf9..4565dbe 100644
+--- a/src/flutter/shell/platform/linux_embedded/window/elinux_window_wayland.cc
++++ b/src/flutter/shell/platform/linux_embedded/window/elinux_window_wayland.cc
+@@ -7,6 +7,7 @@
+ #include <fcntl.h>
+ #include <linux/input-event-codes.h>
+ #include <poll.h>
++#include <stdio.h>
+ #include <unistd.h>
+ #include <xkbcommon/xkbcommon-keysyms.h>
+ 
+@@ -26,6 +27,8 @@ namespace {
+ constexpr char kZwpTextInputManagerV1[] = "zwp_text_input_manager_v1";
+ constexpr char kZwpTextInputManagerV3[] = "zwp_text_input_manager_v3";
+ constexpr char kZxdgDecorationManagerV1[] = "zxdg_decoration_manager_v1";
++constexpr char kWestonSurfacePositionEnvironmentKey[] =
++    "WESTON_SURFACE_POSITION";
+ 
+ constexpr char kWlCursorThemeBottomLeftCorner[] = "bottom_left_corner";
+ constexpr char kWlCursorThemeBottomRightCorner[] = "bottom_right_corner";
+@@ -43,6 +46,22 @@ constexpr char kWlCursorThemeWatch[] = "watch";
+ constexpr char kCursorNameNone[] = "none";
+ 
+ constexpr char kClipboardMimeTypeText[] = "text/plain";
++
++bool ParseWestonSurfacePosition(const char* value, int32_t* x, int32_t* y) {
++  if (!value || !*value) {
++    return false;
++  }
++
++  int parsed_x = 0;
++  int parsed_y = 0;
++  if (sscanf(value, "%d,%d", &parsed_x, &parsed_y) != 2) {
++    return false;
++  }
++
++  *x = parsed_x;
++  *y = parsed_y;
++  return true;
++}
+ }  // namespace
+ 
+ const wl_registry_listener ELinuxWindowWayland::kWlRegistryListener = {
+@@ -100,6 +119,7 @@ const xdg_surface_listener ELinuxWindowWayland::kXdgSurfaceListener = {
+             }
+           }
+           xdg_surface_set_window_geometry(xdg_surface, x, y, width, height);
++          self->ApplyInitialWindowPosition();
+ 
+           xdg_surface_ack_configure(xdg_surface, serial);
+           if (self->wait_for_configure_) {
+@@ -1080,6 +1100,10 @@ ELinuxWindowWayland::ELinuxWindowWayland(
+       view_properties.force_scale_factor ? view_properties.scale_factor : 1.0;
+   SetRotation(view_properties_.view_rotation);
+ 
++  has_initial_window_position_ = ParseWestonSurfacePosition(
++      std::getenv(kWestonSurfacePositionEnvironmentKey), &initial_window_x_,
++      &initial_window_y_);
++
+   auto xcursor_size_string = std::getenv(kXcursorSizeEnvironmentKey);
+   cursor_size_ =
+       xcursor_size_string ? atoi(xcursor_size_string) : kDefaultPointerSize;
+@@ -1422,6 +1446,7 @@ bool ELinuxWindowWayland::CreateRenderSurface(int32_t width_px,
+   }
+   xdg_toplevel_add_listener(xdg_toplevel_, &kXdgToplevelListener, this);
+   wl_surface_set_buffer_scale(native_window_->Surface(), current_scale_);
++  ApplyInitialWindowPosition();
+ 
+   {
+     auto* callback = wl_surface_frame(native_window_->Surface());
+@@ -1473,6 +1498,25 @@ bool ELinuxWindowWayland::CreateRenderSurface(int32_t width_px,
+   return true;
+ }
+ 
++void ELinuxWindowWayland::ApplyInitialWindowPosition() {
++  if (!has_initial_window_position_ || !xdg_surface_ ||
++      view_properties_.view_mode == kFullscreen) {
++    return;
++  }
++
++  if (maximised_) {
++    return;
++  }
++
++  if (!initial_window_position_applied_) {
++    ELINUX_LOG(INFO) << "Request initial Weston position: " << initial_window_x_
++                     << "," << initial_window_y_;
++  }
++  xdg_surface_set_window_geometry(xdg_surface_, initial_window_x_,
++                                  initial_window_y_, 0, 0);
++  initial_window_position_applied_ = true;
++}
++
+ void ELinuxWindowWayland::CreateDecoration(int32_t width_dip,
+                                            int32_t height_dip) {
+   if (window_decorations_) {
+diff --git a/src/flutter/shell/platform/linux_embedded/window/elinux_window_wayland.h b/src/flutter/shell/platform/linux_embedded/window/elinux_window_wayland.h
+index 8ccb84b..1b7fba8 100644
+--- a/src/flutter/shell/platform/linux_embedded/window/elinux_window_wayland.h
++++ b/src/flutter/shell/platform/linux_embedded/window/elinux_window_wayland.h
+@@ -117,6 +117,8 @@ class ELinuxWindowWayland : public ELinuxWindow, public WindowBindingHandler {
+ 
+   void CreateDecoration(int32_t width_dip, int32_t height_dip);
+ 
++  void ApplyInitialWindowPosition();
++
+   // Get window decorations height in physical pixels.
+   uint32_t WindowDecorationsPhysicalHeight() const;
+ 
+@@ -158,9 +160,13 @@ class ELinuxWindowWayland : public ELinuxWindow, public WindowBindingHandler {
+   bool wait_for_configure_ = false;
+   bool request_redraw_ = false;
+   bool maximised_;
++  bool has_initial_window_position_ = false;
++  bool initial_window_position_applied_ = false;
+   uint32_t last_frame_time_;
+   bool enable_impeller_ = false;
+   int32_t transform_ = WL_OUTPUT_TRANSFORM_NORMAL;
++  int32_t initial_window_x_ = 0;
++  int32_t initial_window_y_ = 0;
+ 
+   // Indicates that exists a keyboard show request from Flutter Engine.
+   bool is_requested_show_virtual_keyboard_;
+-- 
+2.25.1
+

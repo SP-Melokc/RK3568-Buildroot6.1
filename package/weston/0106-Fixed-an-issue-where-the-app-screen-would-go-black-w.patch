@@ -1,0 +1,26 @@
+From d4460ac861c0678c2a7630ac6544daf1c325e757 Mon Sep 17 00:00:00 2001
+From: Your Name <dengzhimao@alientek.com>
+Date: Wed, 1 Apr 2026 18:20:52 +0800
+Subject: [PATCH] Fixed an issue where the app screen would go black when
+ switching focus
+
+---
+ libweston/desktop/surface.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libweston/desktop/surface.c b/libweston/desktop/surface.c
+index 87f2a86..3c6b71d 100644
+--- a/libweston/desktop/surface.c
++++ b/libweston/desktop/surface.c
+@@ -917,7 +917,7 @@ weston_desktop_surface_set_attrs(struct weston_desktop_surface *surface,
+ 			     strlen(SURFACE_ATTR_ALPHA))) {
+ 			double alpha = atof(p + strlen(SURFACE_ATTR_ALPHA));
+ 
+-			weston_surface_set_alpha(wsurface, alpha);
++			//weston_surface_set_alpha(wsurface, alpha);
+ 		} else if (!strncmp(p, SURFACE_ATTR_POSITION,
+ 			     strlen(SURFACE_ATTR_POSITION))) {
+ 			int x = 0, y = 0;
+-- 
+2.25.1
+

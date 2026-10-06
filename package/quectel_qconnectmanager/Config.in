@@ -1,0 +1,5 @@
+config BR2_PACKAGE_QUECTEL_QCONNECTMANAGER
+	bool "Connect Manager program provided by Quectel"
+	default n
+	help
+	  Used to test GobiNet/QMI_WWAN driver

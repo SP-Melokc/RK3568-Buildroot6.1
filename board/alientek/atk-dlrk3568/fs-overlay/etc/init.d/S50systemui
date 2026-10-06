@@ -1,0 +1,59 @@
+# Provides:          systemui
+# Required-Start:    mountvirtfs
+# Required-Stop:
+# Should-Start:
+# Should-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Qt systemui
+### END INIT INFO
+
+PATH="/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin"
+
+# Load default env variables from profiles(e.g. /etc/profile.d/*.sh)
+. /etc/profile
+
+start_systemui()
+{
+        # Wait for weston ready, 5 seconds timeout
+	counter=0
+	while [ ! -e "${XDG_RUNTIME_DIR}/wayland-0" ] && [ $counter -lt 20 ]; do
+		sleep 0.1
+		counter=$((counter + 1))
+	done
+        /opt/ui/systemui > /dev/null 2>&1 &
+	/opt/ui/controlcenter > /dev/null 2>&1 &
+}
+
+stop_systemui()
+{
+        killall systemui
+	killall controlcenter
+}
+
+case "$1" in
+        start)
+                echo -n "Starting systemui... "
+                start_systemui
+                echo "done."
+                ;;
+        stop)
+                echo -n "Stoping systemui... "
+                stop_systemui
+                echo "done."
+                ;;
+        restart|reload)
+                echo -n "Stoping systemui... "
+                stop_systemui && sleep .3
+                echo "done."
+
+                echo -n "Starting systemui... "
+                start_systemui
+                echo "done."
+                ;;
+        *)
+                echo "Usage: $0 {start|stop|restart}"
+                exit 1
+esac
+
+exit 0
